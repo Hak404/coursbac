@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+}
+
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.35rem 0;
+  margin: 0.6rem 0;
+}
+
+.katex {
+  font-size: 1.05em;
+}
+
+.math-block {
+  @apply my-3 overflow-x-auto rounded-xl bg-slate-50 px-4 py-2 ring-1 ring-slate-200;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+input[type="range"] {
+  @apply h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  @apply h-4 w-4 rounded-full border-2 border-white bg-primary-600 shadow;
+}
+
+input[type="range"]::-moz-range-thumb {
+  border: none;
+  @apply h-4 w-4 rounded-full border-2 border-white bg-primary-600 shadow;
+}
+
+.jxgbox {
+  border-radius: 0.75rem;
+  margin: 0 auto;
+}
+
+/*
+ * MODE SÉANCE (projecteur) : le contenu est agrandi pour être lisible
+ * à distance. Les graphes JSXGraph passent en grand format.
+ */
+.presentation-root {
+  font-size: 17px;
+}
+
+.presentation-root .mx-auto.w-full.overflow-hidden.rounded-xl {
+  height: 520px !important;
+}
+
+.presentation-root .text-[15px] {
+  font-size: 1.15rem;
+  line-height: 1.75;
+}
+
+.presentation-root .text-sm {
+  font-size: 1rem;
+}
+
+.presentation-root .text-base {
+  font-size: 1.08rem;
+}
+
+.presentation-root .text-lg {
+  font-size: 1.18rem;
+}
+
+.presentation-root .text-xs {
+  font-size: 0.85rem;
+}
+
+.presentation-root .text-[13px] {
+  font-size: 0.95rem;
+}
+
+.presentation-root .text-[13.5px] {
+  font-size: 0.98rem;
+}
+
+.presentation-root .katex {
+  font-size: 1.16em;
+}
+
+.presentation-root .katex-display {
+  margin: 0.8rem 0;
+}
