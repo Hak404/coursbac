@@ -32,7 +32,7 @@ function crossings(f: (x: number) => number, k: number, lo: number, hi: number):
   let prevV = f(lo) - k;
   if (!Number.isFinite(prevV)) prevV = NaN;
   for (let x = lo + h; x <= hi + h; x += h) {
-    let v = f(x) - k;
+    const v = f(x) - k;
     if (!Number.isFinite(v)) {
       prevX = x;
       prevV = NaN;

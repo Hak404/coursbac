@@ -62,17 +62,21 @@ export default function BisectionAnimation({
         fillColor: "#0d9488",
         withLabel: false,
       });
-      const band = board.create("segment", [
-        [LO, bbox[3] + 0.6],
-        [HI, bbox[3] + 0.6],
-      ], {
-        strokeColor: "#059669",
-        strokeWidth: 6,
-        straightLast: false,
-        straightFirst: false,
+      const yBand = bbox[3] + 0.6;
+      const bandL = board.create("point", [LO, yBand], {
+        visible: false,
         withLabel: false,
       });
-      board.extra = { loPt, hiPt, midPt, band };
+      const bandR = board.create("point", [HI, yBand], {
+        visible: false,
+        withLabel: false,
+      });
+      const band = board.create("segment", [bandL, bandR], {
+        strokeColor: "#059669",
+        strokeWidth: 6,
+        withLabel: false,
+      });
+      board.extra = { loPt, hiPt, midPt, bandL, bandR };
     },
     bbox
   );
@@ -84,8 +88,8 @@ export default function BisectionAnimation({
     b.extra.hiPt.moveTo([next.hi, f(next.hi)]);
     const m = (next.lo + next.hi) / 2;
     b.extra.midPt.moveTo([m, f(m)]);
-    b.extra.band.setPoint(0, [1, next.lo, bbox[3] + 0.6]);
-    b.extra.band.setPoint(1, [1, next.hi, bbox[3] + 0.6]);
+    b.extra.bandL.moveTo([next.lo, bbox[3] + 0.6]);
+    b.extra.bandR.moveTo([next.hi, bbox[3] + 0.6]);
   };
 
   useEffect(() => {

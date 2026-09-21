@@ -27,7 +27,12 @@ export function TeX({ children, className }: Props) {
 
 export function Formula({ children, className }: Props) {
   const html = renderLatex(children, true);
-  return <div className={`math-block ${className ?? ""}`} dangerouslySetInnerHTML={{ __html: html }} />;
+  return (
+    <span
+      className={`math-block block ${className ?? ""}`}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 }
 
 export function InlineMath({ children }: { children: string }) {

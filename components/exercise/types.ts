@@ -39,7 +39,7 @@ export type AnswerState =
   | { status: "numeric-wrong"; submitted: string };
 
 export function coerceNumber(input: string): number | null {
-  let s = input.trim().replace(/,/g, ".").replace(/−/g, "-");
+  const s = input.trim().replace(/,/g, ".").replace(/−/g, "-");
   if (!s) return null;
   const m = s.match(/^[-+0-9./()eE\s*]+$/);
   if (!m) return null;
