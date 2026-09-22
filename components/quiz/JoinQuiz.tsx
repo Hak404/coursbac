@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 type JoinQuestion = {
   id: string;
   questionText: string;
+  formula: string;
   options: string[];
 };
 
@@ -144,6 +145,11 @@ export function JoinQuiz() {
               <p className="mt-1.5 text-[15px] font-semibold leading-relaxed text-slate-800">
                 {q.questionText}
               </p>
+              {q.formula.trim() && (
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center font-mono text-sm italic leading-relaxed text-slate-700">
+                  {q.formula}
+                </div>
+              )}
               <div className="mt-4 flex flex-col gap-2">
                 {q.options.map((opt, oi) => {
                   const selected = answers[qi] === oi;

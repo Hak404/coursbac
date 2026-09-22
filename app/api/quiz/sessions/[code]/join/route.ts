@@ -27,7 +27,7 @@ export async function POST(
     where: { code },
     include: {
       questions: {
-        select: { id: true, questionText: true, options: true },
+        select: { id: true, questionText: true, formula: true, options: true },
       },
     },
   });
@@ -72,6 +72,7 @@ export async function POST(
     questions: quiz.questions.map((q) => ({
       id: q.id,
       questionText: q.questionText,
+      formula: q.formula ?? "",
       options: asStringList(q.options),
     })),
     participantId: participant.id,

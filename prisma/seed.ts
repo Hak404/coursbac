@@ -1,7 +1,12 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient, Role } from "../lib/generated/prisma/client";
+import {
+  PrismaClient,
+  Prisma,
+  Role,
+  Difficulty,
+} from "../lib/generated/prisma/client";
 
 const adapter = new PrismaBetterSqlite3({
   url: process.env.DATABASE_URL ?? "file:./dev.db",
@@ -37,6 +42,121 @@ const CHAPTERS = [
     order: 1,
   },
 ];
+
+type SeedQuestion = {
+  title: string;
+  formula: string;
+  options: string[];
+  correctOptionIndex: number;
+  difficulty: Difficulty;
+};
+
+const QUIZ_BANK: Record<string, SeedQuestion[]> = {
+  "limites-continuite": [
+    {
+      title: "Limite d'un quotient",
+      formula: "\\lim_{x \\to 2} \\frac{x^2 - 4}{x - 2}",
+      options: ["4", "2", "0", "n'existe pas"],
+      correctOptionIndex: 0,
+      difficulty: Difficulty.EASY,
+    },
+    {
+      title: "Limite trigonométrique",
+      formula: "\\lim_{x \\to 0} \\frac{\\sin(3x)}{x}",
+      options: ["3", "1", "0", "6"],
+      correctOptionIndex: 0,
+      difficulty: Difficulty.EASY,
+    },
+    {
+      title: "Limite à l'infini (rationnelle)",
+      formula: "\\lim_{x \\to +\\infty} \\frac{2x^2 + 1}{x^2 + 3}",
+      options: ["2", "+\\infty", "1", "3"],
+      correctOptionIndex: 0,
+      difficulty: Difficulty.MEDIUM,
+    },
+    {
+      title: "Limite exponentielle remarquable",
+      formula: "\\lim_{x \\to +\\infty} \\left(1 + \\frac{1}{x}\\right)^x",
+      options: ["e", "1", "0", "e^2"],
+      correctOptionIndex: 0,
+      difficulty: Difficulty.MEDIUM,
+    },
+    {
+      title: "Continuité d'une fonction par morceaux",
+      formula:
+        "f(x) = \\begin{cases} x^2 + 1 & \\text{si } x \\le 2 \\\\ 5 & \\text{si } x > 2 \\end{cases}",
+      options: ["Oui", "Non"],
+      correctOptionIndex: 0,
+      difficulty: Difficulty.HARD,
+    },
+    {
+      title: "Limite d'un quotient polynomial",
+      formula: "\\lim_{x \\to 1} \\frac{x^3 - 1}{x - 1}",
+      options: ["3", "1", "0", "2"],
+      correctOptionIndex: 0,
+      difficulty: Difficulty.HARD,
+    },
+  ],
+  "transformations-lentes-rapides": [
+    {
+      title: "Reconnaître une transformation rapide",
+      formula: "",
+      options: [
+        "La combustion du gaz",
+        "La rouille du fer",
+        "La digestion des aliments",
+        "La formation des stalactites",
+      ],
+      correctOptionIndex: 0,
+      difficulty: Difficulty.EASY,
+    },
+    {
+      title: "Dissolution plus rapide",
+      formula: "",
+      options: ["L'eau chaude", "L'eau froide", "Indifférent", "Aucune"],
+      correctOptionIndex: 0,
+      difficulty: Difficulty.EASY,
+    },
+    {
+      title: "Unité de la vitesse de formation",
+      formula: "v_f = \\frac{n_{\\text{formé}}}{\\Delta t}",
+      options: ["mol·s⁻¹", "mol·L⁻¹", "s⁻¹", "L·mol⁻¹"],
+      correctOptionIndex: 0,
+      difficulty: Difficulty.MEDIUM,
+    },
+    {
+      title: "Température et rapidité",
+      formula: "\\Delta t",
+      options: [
+        "Augmente la vitesse de la transformation",
+        "Diminue la vitesse",
+        "Aucun effet",
+        "Stoppe la réaction",
+      ],
+      correctOptionIndex: 0,
+      difficulty: Difficulty.MEDIUM,
+    },
+    {
+      title: "Calcul d'une vitesse moyenne",
+      formula: "v = \\frac{C_1 - C_2}{\\Delta t}",
+      options: ["mol·L⁻¹·min⁻¹", "mol·L⁻¹", "min", "mol·min⁻¹"],
+      correctOptionIndex: 0,
+      difficulty: Difficulty.HARD,
+    },
+    {
+      title: "Rôle d'un catalyseur",
+      formula: "A + B \\xrightarrow{\\text{catalyseur}} C",
+      options: [
+        "Accélère sans être consommé",
+        "Augmente la concentration",
+        "Change l'équilibre final",
+        "Refroidit la réaction",
+      ],
+      correctOptionIndex: 0,
+      difficulty: Difficulty.HARD,
+    },
+  ],
+};
 
 async function main() {
   const passwordHash = await bcrypt.hash(SEED_PASSWORD, 10);
@@ -79,6 +199,32 @@ async function main() {
         levelId: levels.get(c.levelSlug)!,
       },
     });
+  }
+
+  let seededQuestions = 0;
+  for (const [chapterSlug, questions] of Object.entries(QUIZ_BANK)) {
+    for (const q of questions) {
+      await prisma.quizQuestion.upsert({
+        where: { chapterSlug_title: { chapterSlug, title: q.title } },
+        update: {
+          formula: q.formula,
+          options: q.options as Prisma.InputJsonValue,
+          correctOptionIndex: q.correctOptionIndex,
+          difficulty: q.difficulty,
+          isTemplate: true,
+        },
+        create: {
+          chapterSlug,
+          title: q.title,
+          formula: q.formula,
+          options: q.options as Prisma.InputJsonValue,
+          correctOptionIndex: q.correctOptionIndex,
+          difficulty: q.difficulty,
+          isTemplate: true,
+        },
+      });
+      seededQuestions += 1;
+    }
   }
 
   const profMath = await prisma.user.upsert({
@@ -158,6 +304,7 @@ async function main() {
   console.log("seed ok:", {
     profMath: profMath.email,
     profPhysique: profPhysique.email,
+    seededQuestions,
   });
 }
 

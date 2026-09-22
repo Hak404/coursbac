@@ -45,7 +45,8 @@ function Auth-Get($label, $s, $path, [int]$expected, [string]$locContains = "", 
 
 function Post-Json($s, $path, $obj) {
   try {
-    $r = Invoke-WebRequest -Uri "$base$path" -Method Post -WebSession $s -ContentType "application/json" -Body ($obj | ConvertTo-Json -Compress)
+    $json = $obj | ConvertTo-Json -Depth 8 -Compress
+    $r = Invoke-WebRequest -Uri "$base$path" -Method Post -WebSession $s -ContentType "application/json" -Body $json
     return @{ Code = [int]$r.StatusCode; Json = ($r.Content | ConvertFrom-Json) }
   } catch {
     $resp = $_.Exception.Response
@@ -159,6 +160,56 @@ $cl = Post-Json $sm "/api/quiz/sessions/$qcode/close" @{}
 Check "quiz: close by prof" (($cl.Code -eq 200) -and $cl.Json.ok) "code=$($cl.Code)"
 $closed = Post-Json $guest "/api/quiz/sessions/$qcode/join" @{ studentName = "Un Autre Eleve" }
 Check "quiz: closed session rejects join -> 400" ($closed.Code -eq 400) "code=$($closed.Code)"
+
+Write-Host "--- custom QCM bank flow ---"
+try {
+  $bankRaw = Invoke-WebRequest -Uri "$base/api/quiz/questions?chapterSlug=limites-continuite" -WebSession $sm -MaximumRedirection 0
+  $bankJson = $bankRaw.Content | ConvertFrom-Json
+  $bankCount = @($bankJson.questions).Count
+  Check "bank: seeded QCM bank available" (($bankRaw.StatusCode -eq 200) -and ($bankCount -ge 6)) "n=$bankCount"
+  Check "bank: template flag + difficulty present" (@($bankJson.questions | Where-Object { $_.isTemplate -eq $true -and $_.difficulty -ne $null }).Count -eq $bankCount) ""
+} catch {
+  Check "bank: seeded QCM bank available" $false $_.Exception.Message
+  Check "bank: template flag + difficulty present" $false ""
+}
+
+$customPayload = @{
+  chapterSlug = "limites-continuite"
+  questions = @(
+    @{
+      title = "Smoke Custom Q1"
+      formula = '\lim_{x \to 3} \frac{x^2 - 9}{x - 3}'
+      options = @("6", "3", "9", "1")
+      correctOptionIndex = 0
+      difficulty = "MEDIUM"
+    },
+    @{
+      title = "Smoke Custom Q2"
+      formula = ""
+      options = @("Oui", "Non")
+      correctOptionIndex = 1
+      difficulty = "EASY"
+    }
+  )
+}
+$cq = Post-Json $sm "/api/quiz/sessions" $customPayload
+Check "bank: launch custom session (2 questions)" (($cq.Code -eq 200) -and $cq.Json.ok) "code=$($cq.Code)"
+$cqcode = [string]$cq.Json.session.code
+Check "bank: custom code is 6 digits" ($cqcode -match "^\d{6}$") $cqcode
+
+$customGuest = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+$cj = Post-Json $customGuest "/api/quiz/sessions/$cqcode/join" @{ studentName = "Bank Student" }
+Check "bank: guest joins custom session" (($cj.Code -eq 200) -and $cj.Json.ok -and (@($cj.Json.questions).Count -eq 2)) "code=$($cj.Code)"
+$firstOpts = @($cj.Json.questions[0].options)
+Check "bank: formula exposed to student" (($cj.Json.questions[0].formula -like "*lim*") -and ($firstOpts -contains "6")) "formula=$($cj.Json.questions[0].formula)"
+$leak2 = $false
+foreach ($qq in @($cj.Json.questions)) { if ($null -ne $qq.correctOptionIndex) { $leak2 = $true } }
+Check "bank: correct answers hidden from student" (-not $leak2) "leak=$leak2"
+
+$csq = Post-Json $customGuest "/api/quiz/sessions/$cqcode/submit" @{ studentName = "Bank Student"; answers = @(0, 1) }
+Check "bank: custom submit ok" (($csq.Code -eq 200) -and $csq.Json.ok -and (@($csq.Json.details).Count -eq 2)) "code=$($csq.Code)"
+$csc = Post-Json $sm "/api/quiz/sessions/$cqcode/close" @{}
+Check "bank: close custom session" (($csc.Code -eq 200) -and $csc.Json.ok) "code=$($csc.Code)"
 
 Write-Host "--- wrong password ---"
 $sw = New-Object Microsoft.PowerShell.Commands.WebRequestSession

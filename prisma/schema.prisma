@@ -157,10 +157,26 @@ model DynamicQuestion {
   session           QuizSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   chapterSlug       String
   questionText      String
+  formula           String?
   options           Json
   correctOptionIndex Int
   variableParams    Json
 
   @@index([sessionId])
+  @@index([chapterSlug])
+}
+
+model QuizQuestion {
+  id                String     @id @default(cuid())
+  chapterSlug       String
+  title             String
+  formula           String     @default("")
+  options           Json
+  correctOptionIndex Int
+  difficulty        Difficulty @default(MEDIUM)
+  isTemplate        Boolean    @default(false)
+  createdAt         DateTime   @default(now())
+
+  @@unique([chapterSlug, title])
   @@index([chapterSlug])
 }
