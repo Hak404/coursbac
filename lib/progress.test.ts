@@ -51,3 +51,22 @@ describe("saveQuiz ne conserve que le meilleur score", () => {
     expect(loadProgress().quizBest).toBe(8);
   });
 });
+
+describe("progression isolée par chapitre (scope)", () => {
+  it("sauvegarde chaque chapitre dans ses propres clés", () => {
+    installWindow();
+    saveVisited(["intro"], "math");
+    saveVisited(["transformations-lentes-rapides"], "physique-transformations");
+    expect(loadProgress("math").visited).toEqual(["intro"]);
+    expect(loadProgress("physique-transformations").visited).toEqual([
+      "transformations-lentes-rapides",
+    ]);
+    expect(loadProgress().visited).toEqual([]);
+  });
+
+  it("les clés limites gardent le même format qu'avant (rétrocompatibilité)", () => {
+    installWindow();
+    saveVisited(["intro", "proprietes"]);
+    expect(store.get("coursbac:limites:visited:v1")).toBe('["intro","proprietes"]');
+  });
+});

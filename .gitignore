@@ -1,6 +1,14 @@
 node_modules
 .next
+.next-dev
+.next-prod
 out
 build
 *.log
 .DS_Store
+.env
+.env.*
+!.env.example
+*.db
+*.db-journal
+lib/generated/

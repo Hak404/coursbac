@@ -3,41 +3,38 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { COURSE_SECTIONS } from "@/content/limites";
+import type { CourseSection } from "@/lib/content/types";
+import { courseHref, findChapterByPath } from "@/lib/content/registry";
+import { loadSections } from "@/lib/content/loaders";
 import { loadProgress, saveVisited, saveLast } from "@/lib/progress";
 import { emitReplay } from "@/lib/replay";
 import { PresentationProvider, usePresentationCtx } from "./presentation";
-
-const LESSON_LABELS: Record<string, string> = {
-  decouverte: "Introduction",
-  limites: "Les limites",
-  continuite: "La continuité",
-  fonctions: "Fonctions",
-  entrainement: "Entraînement",
-};
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
 }
 
-function markVisitedAndLast(id: string) {
-  const { visited } = loadProgress();
-  saveLast(id);
-  if (!visited.includes(id)) saveVisited([...visited, id]);
+function markVisitedAndLast(id: string, scope: string) {
+  const { visited } = loadProgress(scope);
+  saveLast(id, scope);
+  if (!visited.includes(id)) saveVisited([...visited, id], scope);
 }
 
-type LessonGroup = { key: string; label: string; scenes: typeof COURSE_SECTIONS };
+type LessonGroup = { key: string; label: string; scenes: CourseSection[] };
 
-function buildLessons(): LessonGroup[] {
+function buildLessons(
+  sections: CourseSection[],
+  labels: Record<string, string>,
+): LessonGroup[] {
   const groups: LessonGroup[] = [];
   const index = new Map<string, LessonGroup>();
-  for (const s of COURSE_SECTIONS) {
+  for (const s of sections) {
     let g = index.get(s.category);
     if (!g) {
       g = {
         key: s.category,
-        label: LESSON_LABELS[s.category] ?? s.category,
+        label: labels[s.category] ?? s.category,
         scenes: [],
       };
       index.set(s.category, g);
@@ -50,25 +47,33 @@ function buildLessons(): LessonGroup[] {
 
 function LessonSidebar({
   idx,
+  sections,
+  labels,
+  levelLabel,
+  subjectModuleLabel,
   visited,
   onSelect,
   onExit,
 }: {
   idx: number;
+  sections: CourseSection[];
+  labels: Record<string, string>;
+  levelLabel: string;
+  subjectModuleLabel: string;
   visited: ReadonlySet<string>;
   onSelect: (i: number) => void;
   onExit: () => void;
 }) {
-  const groups = useMemo(buildLessons, []);
+  const groups = useMemo(() => buildLessons(sections, labels), [sections, labels]);
   return (
     <aside className="flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white">
       <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
         <div className="min-w-0">
           <div className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
-            2BAC Sciences Physiques
+            {levelLabel}
           </div>
           <div className="truncate text-base font-extrabold text-slate-900">
-            Mathématiques · Analyse
+            {subjectModuleLabel}
           </div>
         </div>
         <button
@@ -89,7 +94,7 @@ function LessonSidebar({
             </div>
             <div className="space-y-0.5">
               {g.scenes.map((s) => {
-                const gi = COURSE_SECTIONS.indexOf(s);
+                const gi = sections.indexOf(s);
                 const active = gi === idx;
                 const done = visited.has(s.id);
                 return (
@@ -133,6 +138,7 @@ function LessonSidebar({
 
 function SceneControls({
   idx,
+  sections,
   hasNext,
   hasPrev,
   onNextScene,
@@ -143,6 +149,7 @@ function SceneControls({
   onSceneTop,
 }: {
   idx: number;
+  sections: CourseSection[];
   hasNext: boolean;
   hasPrev: boolean;
   onNextScene: () => void;
@@ -153,7 +160,7 @@ function SceneControls({
   onSceneTop: () => void;
 }) {
   const ctx = usePresentationCtx();
-  const section = COURSE_SECTIONS[idx];
+  const section = sections[idx];
   const steps = (ctx?.totalSteps ?? 0) > 0;
   const allRevealed = !steps || Boolean(ctx?.revealedAll);
 
@@ -204,7 +211,7 @@ function SceneControls({
         <div className="min-w-0 flex-1 px-2 text-center">
           <span className="inline-flex items-center gap-2">
             <span className="rounded-full bg-primary-600 px-2.5 py-0.5 text-xs font-extrabold text-white">
-              Scène {String(idx + 1).padStart(2, "0")} / {String(COURSE_SECTIONS.length).padStart(2, "0")}
+              Scène {String(idx + 1).padStart(2, "0")} / {String(sections.length).padStart(2, "0")}
             </span>
             {steps && (
               <span className="hidden rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-500 sm:inline">
@@ -326,30 +333,48 @@ function GlobalKeys({
   return null;
 }
 
-export function PresentationView() {
+export function PresentationView({
+  subject,
+  level,
+  slug,
+}: {
+  subject: string;
+  level: string;
+  slug: string;
+}) {
   const router = useRouter();
+  const meta = findChapterByPath(subject, level, slug);
+  const sections = useMemo(() => (meta ? loadSections(meta.slug) : []), [meta]);
+  const chapter = useMemo(() => (meta ? { ...meta, sections } : null), [meta, sections]);
+  const scope = useMemo(() => meta?.progressScope ?? "limites", [meta]);
   const [idx, setIdx] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const idxRef = useRef(0);
   idxRef.current = idx;
   const mainRef = useRef<HTMLElement | null>(null);
+  // idx déclenche une relecture fraîche de localStorage (chapitre marqué visité à chaque navigation)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const visited = useMemo(() => new Set(loadProgress(scope).visited), [idx, scope]);
 
   useEffect(() => {
-    const progress = loadProgress();
-    const start = Math.max(0, COURSE_SECTIONS.findIndex((s) => s.id === progress.last));
+    const progress = loadProgress(scope);
+    const start = Math.max(0, sections.findIndex((s) => s.id === progress.last));
     idxRef.current = start;
     setIdx(start);
-  }, []);
+  }, [scope, sections]);
 
-  const goToIdx = useCallback((i: number) => {
-    const clamped = Math.max(0, Math.min(COURSE_SECTIONS.length - 1, i));
-    if (clamped !== idxRef.current) {
-      idxRef.current = clamped;
-      markVisitedAndLast(COURSE_SECTIONS[clamped].id);
-      setIdx(clamped);
-      mainRef.current?.scrollTo({ top: 0 });
-    }
-  }, []);
+  const goToIdx = useCallback(
+    (i: number) => {
+      const clamped = Math.max(0, Math.min(sections.length - 1, i));
+      if (clamped !== idxRef.current) {
+        idxRef.current = clamped;
+        markVisitedAndLast(sections[clamped].id, scope);
+        setIdx(clamped);
+        mainRef.current?.scrollTo({ top: 0 });
+      }
+    },
+    [sections, scope],
+  );
 
   const toggleFullscreen = useCallback(() => {
     if (document.fullscreenElement) void document.exitFullscreen();
@@ -363,30 +388,42 @@ export function PresentationView() {
   }, []);
 
   const exit = useCallback(() => {
-    router.push(`/chapitre/limites-continuite?section=${COURSE_SECTIONS[idxRef.current].id}`);
-  }, [router]);
+    if (chapter) {
+      router.push(`${courseHref(chapter)}?section=${sections[idxRef.current].id}`);
+    }
+  }, [router, chapter, sections]);
 
-  const section = COURSE_SECTIONS[idx];
-  const lesson = LESSON_LABELS[section.category] ?? section.category;
-  const hasNext = idx < COURSE_SECTIONS.length - 1;
+  if (!chapter || sections.length === 0) return null;
+
+  const section = sections[idx];
+  const lesson = chapter.lessonLabels[section.category] ?? section.category;
+  const hasNext = idx < sections.length - 1;
   const hasPrev = idx > 0;
-  const visited = useMemo(() => new Set(loadProgress().visited), [idx]);
 
   return (
     <div className="presentation-root flex h-screen overflow-hidden bg-slate-50 text-slate-900">
       <PresentationProvider key={section.id} mode="presentation">
-        <LessonSidebar idx={idx} visited={visited} onSelect={goToIdx} onExit={exit} />
+        <LessonSidebar
+          idx={idx}
+          sections={sections}
+          labels={chapter.lessonLabels}
+          levelLabel={chapter.levelLabel}
+          subjectModuleLabel={`${chapter.subjectLabel} · ${chapter.moduleLabel}`}
+          visited={visited}
+          onSelect={goToIdx}
+          onExit={exit}
+        />
 
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-2.5">
             <div className="min-w-0 truncate text-sm font-extrabold uppercase tracking-wider text-slate-800">
-              Limites et continuité
+              {chapter.title}
               <span className="ml-2 hidden font-medium normal-case text-slate-400 lg:inline">
-                · 2BAC Sciences Physiques
+                · {chapter.levelLabel}
               </span>
             </div>
             <span className="hidden shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500 sm:inline">
-              Scène {String(idx + 1).padStart(2, "0")} / {String(COURSE_SECTIONS.length).padStart(2, "0")}
+              Scène {String(idx + 1).padStart(2, "0")} / {String(sections.length).padStart(2, "0")}
             </span>
           </header>
 
@@ -417,6 +454,7 @@ export function PresentationView() {
 
         <SceneControls
           idx={idx}
+          sections={sections}
           hasNext={hasNext}
           hasPrev={hasPrev}
           onNextScene={() => goToIdx(idx + 1)}

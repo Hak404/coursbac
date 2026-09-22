@@ -1,19 +1,19 @@
 "use client";
 
-import type { CourseSection } from "@/content/limites/types";
-import { CATEGORIES } from "@/content/limites/types";
+import type { Category, CourseSection } from "@/lib/content/types";
 
 type Props = {
   sections: CourseSection[];
+  categories: Category[];
   currentId: string;
   visited: string[];
   onSelect: (id: string) => void;
 };
 
-export function ChapterSidebar({ sections, currentId, visited, onSelect }: Props) {
+export function ChapterSidebar({ sections, categories, currentId, visited, onSelect }: Props) {
   return (
     <nav className="space-y-5">
-      {CATEGORIES.map((cat) => {
+      {categories.map((cat) => {
         const items = sections.filter((s) => s.category === cat.key);
         if (items.length === 0) return null;
         return (

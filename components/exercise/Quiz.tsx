@@ -14,9 +14,11 @@ export type QuizQ = {
 export default function Quiz({
   questions,
   title = "Quiz final",
+  scope = "limites",
 }: {
   questions: QuizQ[];
   title?: string;
+  scope?: string;
 }) {
   const [idx, setIdx] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
@@ -26,8 +28,8 @@ export default function Quiz({
   const doneRef = useRef(false);
 
   useEffect(() => {
-    setBest(loadProgress().quizBest);
-  }, []);
+    setBest(loadProgress(scope).quizBest);
+  }, [scope]);
 
   const q = questions[idx];
   const answered = picked !== null;
@@ -42,7 +44,7 @@ export default function Quiz({
       const score = next.filter((a, j) => a === questions[j].correct).length;
       if (!doneRef.current) {
         doneRef.current = true;
-        const saved = saveQuiz(((score ?? 0) / questions.length) * 100);
+        const saved = saveQuiz(((score ?? 0) / questions.length) * 100, scope);
         setBest(saved);
       }
     }
@@ -54,7 +56,7 @@ export default function Quiz({
       const score = answers.filter((a, j) => a === questions[j].correct).length;
       if (!doneRef.current) {
         doneRef.current = true;
-        const saved = saveQuiz((score / questions.length) * 100);
+        const saved = saveQuiz((score / questions.length) * 100, scope);
         setBest(saved);
       }
       return;
@@ -76,28 +78,28 @@ export default function Quiz({
     const pct = Math.round((score / questions.length) * 100);
     const msg =
       pct === 100
-        ? "Parfait ! Tu maîtrises le chapitre. 🏆"
+        ? "Parfait ! Tu maÃ®trises le chapitre. ðŸ†"
         : pct >= 70
-          ? "Très bien ! Encore un petit effort. 👏"
+          ? "TrÃ¨s bien ! Encore un petit effort. ðŸ‘"
           : pct >= 40
-            ? "Continue à t'entraîner, tu progresses ! 💪"
-            : "Relis le cours puis reviens essayer. 📘";
+            ? "Continue Ã  t'entraÃ®ner, tu progresses ! ðŸ’ª"
+            : "Relis le cours puis reviens essayer. ðŸ“˜";
     return (
       <div className="my-4 rounded-2xl bg-white p-6 text-center shadow-card ring-1 ring-slate-200">
         <div className="text-5xl">{pct}%</div>
         <div className="mt-2 text-lg font-bold text-slate-800">
-          {score} / {questions.length} bonnes réponses
+          {score} / {questions.length} bonnes rÃ©ponses
         </div>
         <p className="mt-1 text-slate-600">{msg}</p>
         {best !== null && (
-          <p className="mt-2 text-xs text-slate-400">Meilleur score enregistré : {Math.round(best)}%</p>
+          <p className="mt-2 text-xs text-slate-400">Meilleur score enregistrÃ© : {Math.round(best)}%</p>
         )}
         <button
           type="button"
           onClick={restart}
           className="mt-4 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700"
         >
-          ⟲ Refaire le quiz
+          âŸ² Refaire le quiz
         </button>
       </div>
     );
@@ -159,10 +161,10 @@ export default function Quiz({
               : "bg-red-50 text-red-900 ring-red-200"
           }`}
         >
-          <div className="mb-1 font-bold">{picked === q.correct ? "✔ Bonne réponse !" : "✘ Mauvaise réponse."}</div>
+          <div className="mb-1 font-bold">{picked === q.correct ? "âœ” Bonne rÃ©ponse !" : "âœ˜ Mauvaise rÃ©ponse."}</div>
           {picked !== q.correct && (
             <div className="mb-1">
-              La bonne réponse était{" "}
+              La bonne rÃ©ponse Ã©tait{" "}
               <span className="font-bold">
                 {String.fromCharCode(65 + q.correct)}. {q.options[q.correct]}
               </span>
@@ -178,12 +180,12 @@ export default function Quiz({
           onClick={nextQ}
           className="mt-3 rounded-xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700"
         >
-          {idx + 1 >= questions.length ? "Voir mon résultat →" : "Question suivante →"}
+          {idx + 1 >= questions.length ? "Voir mon rÃ©sultat â†’" : "Question suivante â†’"}
         </button>
       )}
 
       {progress === 0 && idx === 0 && (
-        <p className="mt-2 text-xs text-slate-400">Réponds à toutes les questions pour obtenir ton score final.</p>
+        <p className="mt-2 text-xs text-slate-400">RÃ©ponds Ã  toutes les questions pour obtenir ton score final.</p>
       )}
     </div>
   );

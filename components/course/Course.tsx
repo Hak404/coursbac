@@ -3,78 +3,100 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { COURSE_SECTIONS } from "@/content/limites";
-import { CATEGORIES } from "@/content/limites/types";
+import { findChapterByPath, presentationHref } from "@/lib/content/registry";
+import { loadSections } from "@/lib/content/loaders";
 import { loadProgress, saveVisited, saveLast } from "@/lib/progress";
 import { ProgressBar } from "./ProgressBar";
 import { ChapterSidebar } from "./ChapterSidebar";
 
-export function Course({ initialId }: { initialId?: string }) {
+export function Course({
+  subject,
+  level,
+  slug,
+  initialId,
+}: {
+  subject: string;
+  level: string;
+  slug: string;
+  initialId?: string;
+}) {
+  const meta = findChapterByPath(subject, level, slug);
+  const sections = useMemo(() => (meta ? loadSections(meta.slug) : []), [meta]);
+  const chapter = useMemo(() => (meta ? { ...meta, sections } : null), [meta, sections]);
+  const scope = useMemo(() => meta?.progressScope ?? "limites", [meta]);
+
   const [index, setIndex] = useState(() =>
     initialId
-      ? Math.max(0, COURSE_SECTIONS.findIndex((s) => s.id === initialId))
+      ? Math.max(0, sections.findIndex((s) => s.id === initialId))
       : 0,
   );
   const [visited, setVisited] = useState<string[]>([]);
   const [drawer, setDrawer] = useState(false);
 
   useEffect(() => {
-    const target = initialId ?? loadProgress().last;
-    const i = COURSE_SECTIONS.findIndex((s) => s.id === target);
+    const target = initialId ?? loadProgress(scope).last;
+    const i = sections.findIndex((s) => s.id === target);
     setIndex(Math.max(0, i));
-    setVisited(loadProgress().visited);
-  }, [initialId]);
+    setVisited(loadProgress(scope).visited);
+  }, [initialId, scope, sections]);
 
   useEffect(() => {
-    saveLast(COURSE_SECTIONS[index]?.id ?? "intro");
-  }, [index]);
+    saveLast(sections[index]?.id ?? "intro", scope);
+  }, [index, scope, sections]);
 
-  const markVisited = useCallback((id: string) => {
-    setVisited((prev) => {
-      if (prev.includes(id)) return prev;
-      const next = [...prev, id];
-      saveVisited(next);
-      return next;
-    });
-  }, []);
+  const markVisited = useCallback(
+    (id: string) => {
+      setVisited((prev) => {
+        if (prev.includes(id)) return prev;
+        const next = [...prev, id];
+        saveVisited(next, scope);
+        return next;
+      });
+    },
+    [scope],
+  );
 
   const goTo = useCallback(
     (id: string) => {
-      const i = COURSE_SECTIONS.findIndex((s) => s.id === id);
+      const i = sections.findIndex((s) => s.id === id);
       if (i < 0) return;
-      markVisited(COURSE_SECTIONS[index].id);
+      markVisited(sections[index].id);
       setIndex(i);
       setDrawer(false);
       window.scrollTo({ top: 0, behavior: "smooth" });
     },
-    [index, markVisited],
+    [index, markVisited, sections],
   );
 
   const goNext = useCallback(() => {
-    markVisited(COURSE_SECTIONS[index].id);
-    setIndex((i) => Math.min(COURSE_SECTIONS.length - 1, i + 1));
+    markVisited(sections[index].id);
+    setIndex((i) => Math.min(sections.length - 1, i + 1));
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [index, markVisited]);
+  }, [index, markVisited, sections]);
 
   const goPrev = useCallback(() => {
     setIndex((i) => Math.max(0, i - 1));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const section = COURSE_SECTIONS[index];
+  const section = sections[index];
   const categoryLabel = useMemo(
-    () => CATEGORIES.find((c) => c.key === section.category)?.label ?? "",
-    [section],
+    () =>
+      chapter?.categories.find((c) => c.key === section?.category)?.label ?? "",
+    [chapter, section],
   );
-  const percent = COURSE_SECTIONS.length
-    ? (visited.length / COURSE_SECTIONS.length) * 100
+  const percent = sections.length
+    ? (visited.length / sections.length) * 100
     : 0;
+
+  if (!chapter) return null;
 
   return (
     <div className="mx-auto flex max-w-6xl gap-6 px-4 py-6">
       <aside className="sticky top-20 hidden max-h-[calc(100vh-6rem)] w-72 shrink-0 overflow-y-auto pr-1 lg:block">
         <ChapterSidebar
-          sections={COURSE_SECTIONS}
+          sections={sections}
+          categories={chapter.categories}
           currentId={section.id}
           visited={visited}
           onSelect={goTo}
@@ -94,15 +116,15 @@ export function Course({ initialId }: { initialId?: string }) {
             </button>
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-bold text-slate-800">
-                Limites et continuité · 2BAC PC
+                {chapter.shortTitle} · {chapter.levelShort}
               </div>
               <ProgressBar percent={percent} />
             </div>
             <div className="hidden text-xs text-slate-500 sm:block">
-              {visited.length}/{COURSE_SECTIONS.length} sections lues
+              {visited.length}/{sections.length} sections lues
             </div>
             <Link
-              href="/presentation/limites-continuite"
+              href={presentationHref(chapter)}
               className="shrink-0 rounded-xl bg-slate-800 px-3.5 py-2 text-sm font-bold text-white shadow transition hover:bg-slate-700"
               title="Ouvrir en mode présentation (plein écran)"
             >
@@ -151,12 +173,12 @@ export function Course({ initialId }: { initialId?: string }) {
               ← Précédent
             </button>
             <div className="text-xs font-medium text-slate-400">
-              {index + 1} / {COURSE_SECTIONS.length}
+              {index + 1} / {sections.length}
             </div>
             <button
               type="button"
               onClick={goNext}
-              disabled={index === COURSE_SECTIONS.length - 1}
+              disabled={index === sections.length - 1}
               className="rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lift transition enabled:hover:bg-primary-700 disabled:opacity-40"
             >
               Suivant →
@@ -194,7 +216,8 @@ export function Course({ initialId }: { initialId?: string }) {
                 </button>
               </div>
               <ChapterSidebar
-                sections={COURSE_SECTIONS}
+                sections={sections}
+                categories={chapter.categories}
                 currentId={section.id}
                 visited={visited}
                 onSelect={goTo}

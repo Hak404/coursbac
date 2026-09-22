@@ -1,8 +1,12 @@
 "use client";
 
-const KEY_VISITED = "coursbac:limites:visited:v1";
-const KEY_LAST = "coursbac:limites:last:v1";
-const KEY_QUIZ = "coursbac:limites:quiz:v1";
+function keys(scope: string) {
+  return {
+    visited: `coursbac:${scope}:visited:v1`,
+    last: `coursbac:${scope}:last:v1`,
+    quiz: `coursbac:${scope}:quiz:v1`,
+  };
+}
 
 function read<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -29,26 +33,28 @@ export type ProgressStore = {
   quizBest: number | null;
 };
 
-export function loadProgress(): ProgressStore {
+export function loadProgress(scope = "limites"): ProgressStore {
+  const k = keys(scope);
   return {
-    visited: read<string[]>(KEY_VISITED, []),
-    last: read<string>(KEY_LAST, "intro"),
-    quizBest: read<number | null>(KEY_QUIZ, null),
+    visited: read<string[]>(k.visited, []),
+    last: read<string>(k.last, "intro"),
+    quizBest: read<number | null>(k.quiz, null),
   };
 }
 
-export function saveVisited(visited: string[]) {
-  write(KEY_VISITED, visited);
+export function saveVisited(visited: string[], scope = "limites") {
+  write(keys(scope).visited, visited);
 }
 
-export function saveLast(last: string) {
-  write(KEY_LAST, last);
+export function saveLast(last: string, scope = "limites") {
+  write(keys(scope).last, last);
 }
 
-export function saveQuiz(best: number) {
-  const prev = read<number | null>(KEY_QUIZ, null);
+export function saveQuiz(best: number, scope = "limites") {
+  const k = keys(scope);
+  const prev = read<number | null>(k.quiz, null);
   if (prev === null || best > prev) {
-    write(KEY_QUIZ, best);
+    write(k.quiz, best);
     return best;
   }
   return prev;

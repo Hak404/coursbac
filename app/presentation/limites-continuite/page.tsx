@@ -1,5 +1,5 @@
-import { PresentationView } from "@/components/presentation/PresentationView";
+import { redirect } from "next/navigation";
 
-export default function PresentationPage() {
-  return <PresentationView />;
+export default function LegacyPresentation() {
+  redirect("/presentation/math/2bac/limites-continuite");
 }

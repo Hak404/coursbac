@@ -14,10 +14,13 @@ const eslintConfig = [
   {
     ignores: [
       ".next/**",
+      ".next-dev/**",
+      ".next-prod/**",
       "node_modules/**",
       "out/**",
       "build/**",
       "next-env.d.ts",
+      "lib/generated/**",
     ],
   },
   {

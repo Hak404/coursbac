@@ -1,0 +1,166 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  PROFESSOR
+  STUDENT
+  ADMIN
+}
+
+enum QuizSessionStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  role          Role
+  passwordHash  String?
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime @default(now())
+  professor     ProfessorProfile?
+  student       StudentProfile?
+  quizSessions  QuizSession[]     @relation("QuizTeacher")
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model Account {
+  id                       String  @id @default(cuid())
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String?
+  refresh_token_expires_in Int?
+  access_token             String?
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String?
+  session_state            String?
+  user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model ProfessorProfile {
+  id         String        @id @default(cuid())
+  userId     String        @unique
+  user       User          @relation(fields: [userId], references: [id])
+  isApproved Boolean       @default(false)
+  subjects   Subject[]     @relation("ProfessorSubjects")
+  levels     SchoolLevel[] @relation("ProfessorLevels")
+}
+
+model StudentProfile {
+  id             String       @id @default(cuid())
+  userId         String       @unique
+  user           User         @relation(fields: [userId], references: [id])
+  currentLevelId String?
+  currentLevel   SchoolLevel? @relation(fields: [currentLevelId], references: [id])
+}
+
+model Subject {
+  id               String             @id @default(cuid())
+  slug             String             @unique
+  name             String
+  chapters         Chapter[]
+  professorProfiles ProfessorProfile[] @relation("ProfessorSubjects")
+}
+
+model SchoolLevel {
+  id                String             @id @default(cuid())
+  slug              String             @unique
+  name              String
+  order             Int                @default(0)
+  chapters          Chapter[]
+  professorProfiles ProfessorProfile[] @relation("ProfessorLevels")
+  students          StudentProfile[]
+}
+
+model Chapter {
+  id        String      @id @default(cuid())
+  slug      String
+  title     String
+  order     Int         @default(1)
+  subjectId String
+  levelId   String
+  subject   Subject     @relation(fields: [subjectId], references: [id])
+  level     SchoolLevel @relation(fields: [levelId], references: [id])
+
+  @@unique([subjectId, levelId, slug])
+}
+
+model QuizSession {
+  id           String             @id @default(cuid())
+  code         String             @unique
+  teacherId    String
+  teacher      User               @relation("QuizTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  chapterSlug  String
+  status       QuizSessionStatus  @default(ACTIVE)
+  createdAt    DateTime           @default(now())
+  participants QuizParticipant[]
+  questions    DynamicQuestion[]
+
+  @@index([code])
+  @@index([teacherId])
+}
+
+model QuizParticipant {
+  id             String      @id @default(cuid())
+  sessionId      String
+  session        QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentName    String
+  score          Int         @default(0)
+  totalQuestions Int         @default(0)
+  submittedAt    DateTime    @default(now())
+
+  @@unique([sessionId, studentName])
+  @@index([sessionId])
+}
+
+model DynamicQuestion {
+  id                String       @id @default(cuid())
+  sessionId         String?
+  session           QuizSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  chapterSlug       String
+  questionText      String
+  options           Json
+  correctOptionIndex Int
+  variableParams    Json
+
+  @@index([sessionId])
+  @@index([chapterSlug])
+}
