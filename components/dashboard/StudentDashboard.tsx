@@ -63,6 +63,29 @@ export function StudentDashboard({ session }: { session: Session }) {
           </p>
         </motion.div>
 
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.04 }}
+        >
+          <Link
+            href="/etudiant/travaux"
+            className="mt-8 flex max-w-3xl flex-wrap items-center justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-card transition hover:border-primary-300 hover:bg-primary-50/40"
+          >
+            <div>
+              <div className="text-sm font-extrabold uppercase tracking-wide text-primary-700">
+                Mes travaux
+              </div>
+              <div className="mt-1 text-lg font-extrabold text-slate-900">
+                Rejoindre un travail avec un code
+              </div>
+            </div>
+            <span className="inline-flex items-center rounded-2xl bg-primary-600 px-5 py-3 text-sm font-extrabold text-white shadow-lift transition hover:bg-primary-700">
+              Voir les travaux
+            </span>
+          </Link>
+        </motion.div>
+
         <div className="mt-10 grid max-w-3xl gap-6">
           {shown.map((chapter, i) => (
             <motion.section

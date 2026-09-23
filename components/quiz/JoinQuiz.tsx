@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { Formula } from "@/components/ui/TeX";
 
 type JoinQuestion = {
   id: string;
@@ -146,8 +147,8 @@ export function JoinQuiz() {
                 {q.questionText}
               </p>
               {q.formula.trim() && (
-                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center font-mono text-sm italic leading-relaxed text-slate-700">
-                  {q.formula}
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center text-slate-700">
+                  <Formula>{q.formula}</Formula>
                 </div>
               )}
               <div className="mt-4 flex flex-col gap-2">

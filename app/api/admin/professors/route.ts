@@ -42,23 +42,41 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") return denied();
+  try {
+    const session = await auth();
+    if (session?.user?.role !== "ADMIN") return denied();
 
-  const body = await req.json().catch(() => null);
-  const professorId =
-    typeof body?.professorId === "string" ? body.professorId : "";
-  if (!professorId) {
+    const body = await req.json().catch(() => null);
+    const professorId =
+      typeof body?.professorId === "string" ? body.professorId : "";
+    if (!professorId) {
+      return NextResponse.json(
+        { ok: false, error: "Identifiant professeur manquant." },
+        { status: 400 }
+      );
+    }
+
+    const existing = await prisma.professorProfile.findUnique({
+      where: { id: professorId },
+      select: { id: true },
+    });
+    if (!existing) {
+      return NextResponse.json(
+        { ok: false, error: "Professeur introuvable." },
+        { status: 404 }
+      );
+    }
+
+    await prisma.professorProfile.update({
+      where: { id: professorId },
+      data: { isApproved: true },
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch {
     return NextResponse.json(
-      { ok: false, error: "Identifiant professeur manquant." },
-      { status: 400 }
+      { ok: false, error: "Erreur serveur." },
+      { status: 500 }
     );
   }
-
-  await prisma.professorProfile.update({
-    where: { id: professorId },
-    data: { isApproved: true },
-  });
-
-  return NextResponse.json({ ok: true });
 }

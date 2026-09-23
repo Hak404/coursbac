@@ -109,6 +109,8 @@ Check "admin: pending list detected" ($pendingCount -gt 0) "count=$pendingCount"
 $target = $list.professors | Where-Object { $_.email -eq $newEmail }
 $approveRes = Invoke-RestMethod -Uri "$base/api/admin/professors" -Method Post -WebSession $sa -ContentType "application/json" -Body (@{ professorId = $target.id } | ConvertTo-Json)
 Check "admin: approve POST ok" ($approveRes.ok -eq $true) ($approveRes | ConvertTo-Json -Compress)
+$adminBad = Post-Json $sa "/api/admin/professors" @{ professorId = "nonexistent-professor-id" }
+Check "admin: unknown professorId -> 404" (($adminBad.Code -eq 404) -and ("$($adminBad.Json.error)" -like "*Professeur introuvable*")) "code=$($adminBad.Code)"
 Auth-Get "approved-now: stale session still /en-attente (JWT)" $sn "/professeur" 307 "en-attente"
 $sn2 = Login $newEmail "password123"
 Auth-Get "approved-now: re-login /professeur 200" $sn2 "/professeur" 200 "" "Professeur Nouveau"
@@ -160,6 +162,30 @@ $cl = Post-Json $sm "/api/quiz/sessions/$qcode/close" @{}
 Check "quiz: close by prof" (($cl.Code -eq 200) -and $cl.Json.ok) "code=$($cl.Code)"
 $closed = Post-Json $guest "/api/quiz/sessions/$qcode/join" @{ studentName = "Un Autre Eleve" }
 Check "quiz: closed session rejects join -> 400" ($closed.Code -eq 400) "code=$($closed.Code)"
+
+Write-Host "--- phase 1A: quiz live security ---"
+$q2 = Post-Json $sm "/api/quiz/sessions" @{ chapterSlug = "limites-continuite"; questionCount = 2 }
+Check "sec: create session (1a)" (($q2.Code -eq 200) -and $q2.Json.ok) "code=$($q2.Code)"
+$q2code = [string]$q2.Json.session.code
+Check "sec: code is 6 digits" ($q2code -match "^\d{6}$") $q2code
+
+$noJoin = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+$nosub = Post-Json $noJoin "/api/quiz/sessions/$q2code/submit" @{ studentName = "Direct Only"; answers = @(0, 1) }
+Check "sec: submit without join -> 400/409" (($nosub.Code -eq 400) -or ($nosub.Code -eq 409)) "code=$($nosub.Code)"
+
+$jn = Post-Json $noJoin "/api/quiz/sessions/$q2code/join" @{ studentName = "Direct Only" }
+Check "sec: join after refused submit ok" (($jn.Code -eq 200) -and $jn.Json.ok) "code=$($jn.Code)"
+
+$sj = Post-Json $noJoin "/api/quiz/sessions/$q2code/submit" @{ studentName = "Direct Only"; answers = @(0, 1) }
+Check "sec: submit after join -> success" (($sj.Code -eq 200) -and $sj.Json.ok) "code=$($sj.Code)"
+
+$sj2 = Post-Json $noJoin "/api/quiz/sessions/$q2code/submit" @{ studentName = "Direct Only"; answers = @(0, 1) }
+Check "sec: double submit -> 400/409" (($sj2.Code -eq 400) -or ($sj2.Code -eq 409)) "code=$($sj2.Code)"
+
+$cl2 = Post-Json $sm "/api/quiz/sessions/$q2code/close" @{}
+Check "sec: close session" (($cl2.Code -eq 200) -and $cl2.Json.ok) "code=$($cl2.Code)"
+$rjn = Post-Json $noJoin "/api/quiz/sessions/$q2code/join" @{ studentName = "Late Student" }
+Check "sec: join after close -> 400" ($rjn.Code -eq 400) "code=$($rjn.Code)"
 
 Write-Host "--- custom QCM bank flow ---"
 try {

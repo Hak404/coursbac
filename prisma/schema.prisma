@@ -24,6 +24,18 @@ enum Difficulty {
   HARD
 }
 
+enum AssignmentStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum AssignmentAttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  GRADED
+}
+
 model User {
   id            String   @id @default(cuid())
   email         String   @unique
@@ -36,6 +48,8 @@ model User {
   professor     ProfessorProfile?
   student       StudentProfile?
   quizSessions  QuizSession[]     @relation("QuizTeacher")
+  assignmentsCreated Assignment[]  @relation("AssignmentCreator")
+  assignmentAttempts AssignmentAttempt[] @relation("AssignmentAttemptStudent")
   accounts      Account[]
   sessions      Session[]
 }
@@ -145,6 +159,7 @@ model QuizParticipant {
   studentName    String
   score          Int         @default(0)
   totalQuestions Int         @default(0)
+  submitted      Boolean     @default(false)
   submittedAt    DateTime    @default(now())
 
   @@unique([sessionId, studentName])
@@ -179,4 +194,83 @@ model QuizQuestion {
 
   @@unique([chapterSlug, title])
   @@index([chapterSlug])
+}
+
+model Assignment {
+  id           String           @id @default(cuid())
+  accessCode   String           @unique
+  title        String
+  instructions String?
+  subjectSlug  String
+  levelSlug    String
+  chapterSlug  String
+  status       AssignmentStatus @default(DRAFT)
+  createdById  String
+  createdBy    User             @relation("AssignmentCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  dueDate      DateTime?
+  attemptLimit Int              @default(1)
+  showFeedback Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  questions    AssignmentQuestion[]
+  attempts     AssignmentAttempt[]
+
+  @@index([createdById])
+  @@index([status])
+  @@index([subjectSlug])
+  @@index([levelSlug])
+  @@index([chapterSlug])
+}
+
+model AssignmentQuestion {
+  id                String             @id @default(cuid())
+  assignmentId      String
+  assignment        Assignment         @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  index             Int
+  title             String
+  formula           String?
+  options           Json
+  correctOptionIndex Int
+  difficulty        Difficulty         @default(MEDIUM)
+  points            Float              @default(1)
+  sourceQuestionId  String?
+  createdAt         DateTime           @default(now())
+  answers           AssignmentAnswer[]
+
+  @@unique([assignmentId, index])
+  @@index([assignmentId])
+}
+
+model AssignmentAttempt {
+  id             String                 @id @default(cuid())
+  assignmentId   String
+  assignment     Assignment             @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  studentId      String
+  student        User                   @relation("AssignmentAttemptStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  attemptNumber  Int
+  status         AssignmentAttemptStatus @default(IN_PROGRESS)
+  score          Float?
+  startedAt      DateTime               @default(now())
+  submittedAt    DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  answers        AssignmentAnswer[]
+
+  @@unique([assignmentId, studentId, attemptNumber])
+  @@index([assignmentId])
+  @@index([studentId])
+  @@index([status])
+}
+
+model AssignmentAnswer {
+  id           String             @id @default(cuid())
+  attemptId    String
+  attempt      AssignmentAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId   String
+  question     AssignmentQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedIndex Int
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
+  @@index([questionId])
 }

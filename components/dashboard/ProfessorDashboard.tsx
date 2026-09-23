@@ -84,6 +84,12 @@ export function ProfessorDashboard({ session }: { session: Session }) {
           </div>
           <div className="flex items-center gap-3">
             <Link
+              href="/professeur/travaux"
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-1.5 text-sm font-bold text-primary-700 ring-1 ring-primary-200 transition hover:bg-primary-50"
+            >
+              ✏️ Travaux
+            </Link>
+            <Link
               href="/professeur/quiz"
               className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-primary-700"
             >

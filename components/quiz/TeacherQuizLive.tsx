@@ -11,6 +11,7 @@ import {
 import { visibleChapters } from "@/lib/auth/session";
 import { supportsQuiz } from "@/lib/quiz/generator";
 import type { Session } from "@/lib/auth/session";
+import { Formula } from "@/components/ui/TeX";
 
 type Difficulty = "EASY" | "MEDIUM" | "HARD";
 
@@ -482,8 +483,8 @@ export function TeacherQuizLive({ session }: { session: Session }) {
                               {d.title || "— Question sans titre —"}
                             </p>
                             {d.formula.trim() && (
-                              <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-[13px] italic text-slate-700">
-                                {d.formula}
+                              <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700">
+                                <Formula>{d.formula}</Formula>
                               </div>
                             )}
                           </div>
